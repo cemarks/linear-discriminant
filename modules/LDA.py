@@ -10,6 +10,8 @@ Python module to perform general linear discrimenant analysis.
 
 from sklearn.preprocessing import StandardScaler,OneHotEncoder
 import numpy as np
+from scipy.special import softmax
+
 
 class LinearModel:
     """Class to standardize regression models for use in LDA"""
@@ -42,7 +44,12 @@ class LinearModel:
 
 
 class KernelModel:
-    """Class to standardize regression models for use in LDA"""
+    """Class to standardize nonparametric (kernel) regression models for use in LDA
+    The kernel function must input two matrices:
+        x1 = (p x n)
+        x2 = (q x n)
+    and output a (p x q) kernel matrix
+    """
     def __init__(self,kernel_function = None):
         self.PARAM = None
         self.X_TNG = None
@@ -79,6 +86,13 @@ class LDA:
     Class to perform linear discrimenant analysis
     X is a 2-dimensional array.
     y is a one dimensional array of target classes
+    regression_model must have the following:
+        -a fit(X,y,regularize_coef) method that fits the model.
+        -a weight_param(THETA) method that transforms the regression output 
+            according to THETA (i.e. YH --> np.dot(YH,THETA))
+        -a __call__ method that inputs an X array and returns corresponding
+           (transformed) estimates
+        
     """
     def __init__(self,X,y,regression_model=None,reg_coef=1):
         self.X_raw = X
@@ -89,9 +103,19 @@ class LDA:
             self.regression_model = LinearModel()
         else:
             self.regression_model = regression_model
+    def __call__(self,new_X,dims=None,probs=False):
+        X = self.scale_new_x(new_X)
+        distance_matrix = self.m_distance(X,dims)
+        if probs:
+            sm = softmax(-1*distance_matrix,axis=1)
+            return sm
+        else:
+            class_ints = np.argmin(distance_matrix,axis=1)
+            class_names = [self.y_list[i] for i in class_ints]
+            return class_names
     def normalize(self):
         self.scalar = StandardScaler()
-        self.scalar.fit(X)
+        self.scalar.fit(self.X_raw)
         self.X = self.scalar.transform(self.X_raw)
         y_set = set(self.y_raw)
         self.y_list = list(y_set)
@@ -99,6 +123,11 @@ class LDA:
         Y_int = np.array([self.y_dict[i] for i in self.y_raw],dtype="int32")
         ohe = OneHotEncoder(sparse=False)
         self.Y = ohe.fit_transform(Y_int.reshape(-1,1))
+    def scale_new_x(self,new_X):
+        if len(new_X.shape) < 2:
+            new_X = new_X.reshape(1,-1)
+        X = self.scalar.transform(new_X)
+        return X
     def fit(self):
         YH = self.regression_model.fit(self.X,self.Y,self.reg_coef)
         YTYH = np.dot(np.transpose(self.Y),YH)
@@ -111,100 +140,95 @@ class LDA:
         self.THETA = np.dot(W_sorted,A)
         self.regression_model.weight_param(self.THETA)
         centroids = np.zeros((len(self.y_list),len(self.y_list)))
-        w = np.zeros(len(self.y_list))
         for i in range(len(self.y_list)):
             cl = self.y_list[i]
-            eta = self.regression_model(X[np.where(self.y_raw==cl)])
+            eta = self.regression_model(self.X[np.where(self.y_raw==cl)])
             centroids[i] = np.mean(eta,axis=0)
-        self.centroids = centroids
-
-        self.centroids = np.mean(eta[:,1:eta.shape[1]],axis=0)
+        self.centroids = centroids[:,1:]
+        SS_NORM = l_sorted[0]
+        RS = l_sorted[1:]/SS_NORM
+        self.w = np.sqrt(1/(RS*(1-RS)))
+    def eta_minus_etameans_squared(self,single_eta):
+        if len(single_eta.shape) < 2:
+            eta = single_eta.reshape(1,-1)[:,1:]
+        else:
+            eta = single_eta[:,1:]
+        eta_matrix = eta.repeat(len(self.centroids),axis=0)
+        eta_diff = eta_matrix - self.centroids
+        eta_diff_squared = np.power(eta_diff,2)
+        return(eta_diff_squared)
+    def m_distance(self,scaled_X,d=None):
+        eta = self.regression_model(scaled_X)
+        w = self.w.copy()
+        if (d is not None) and (d < len(w)):
+            for i in range(d,len(w)):
+                w[i] = 0
+        o = np.zeros(eta.shape)
+        for i in range(len(eta)):
+            e = eta[i]
+            D = self.eta_minus_etameans_squared(e)
+            o[i,:] = np.dot(D,w)
+        return(o)
     def predict(self,X):
+        pass
+    def plot(self,coordx,coordy,new_X = None):
+        from matplotlib import pyplot as plt
+        if new_X is not None:
+            X = self.scale_new_x(new_X)
+        else:
+            X = self.X
+        eta = self.regression_model(X)
+        eta = eta[:,1:]
+        colors = [((1/(len(self.y_list)*2)+i/len(self.y_list)),0.5-0.5*(1/(len(self.y_list)*2)+i/len(self.y_list)),1-(1/(len(self.y_list)*2)+i/len(self.y_list))) for i in range(len(self.y_list))]
+        plot_colors = [colors[self.y_dict[i]] for i in self.y_raw]
+        plt.scatter(
+            self.w[coordx]*eta[:,coordx],
+            self.w[coordy]*eta[:,coordy],
+            s = 2,
+            marker = ".",
+            c = plot_colors
+        )
+        plt.scatter(
+            self.w[coordx]*self.centroids[:,coordx],
+            self.w[coordy]*self.centroids[:,coordy], 
+            s = 6,
+            c = '#FFFFFF',
+            linewidths = 3,
+            edgecolors = colors
+        )
+        plt.show()
+        plt.clf()
+        plt.close()
 
-    def plot(self,coordx,coordy):
-        from matplotlib import pyplot as plt
-        eta = np.dot(self.X[:,0:self.X.shape[1]],self.new_B)
-        eta_means = np.zeros((len(self.y_list),eta.shape[1]))
-        print(eta.shape)
-        print(eta_means.shape)
-        for i in range(len(self.y_list)):
-            inds = [j for j in range(eta.shape[0]) if self.y_dict[self.y_raw[j]]==i]
-            eta_means[i,:] = np.mean(eta[inds,:],axis=0)
-        colors = [((1/(len(self.y_list)*2)+i/len(self.y_list)),0.5-0.5*(1/(len(self.y_list)*2)+i/len(self.y_list)),1-(1/(len(self.y_list)*2)+i/len(self.y_list))) for i in range(len(self.y_list))]
-        plot_colors = [colors[self.y_dict[i]] for i in self.y_raw]
-        plt.scatter(
-            eta[:,coordx],
-            eta[:,coordy],
-            s = 2,
-            marker = ".",
-            c = [colors[self.y_dict[i]] for i in self.y_raw]
-        )
-        plt.scatter(
-            eta_means[:,coordx],
-            eta_means[:,coordy], 
-            s = 6,
-            c = '#FFFFFF',
-            linewidths = 3,
-            edgecolors = colors
-        )
-        plt.show()
-        plt.clf()
-        plt.close()
-    def predict(self,new_X,new_Y,coordx,coordy):
-        from matplotlib import pyplot as plt
-        X = np.concatenate(
-            (
-                [[1]] * new_X.shape[0],
-                self.scalar.transform(new_X),
-            ),
-            axis = 1
-        )
-        eta = np.dot(X[:,0:X.shape[1]],self.new_B)
-        eta_means = np.zeros((len(self.y_list),eta.shape[1]))
-        print(eta.shape)
-        print(eta_means.shape)
-        for i in range(len(self.y_list)):
-            inds = [j for j in range(eta.shape[0]) if self.y_dict[self.y_raw[j]]==i]
-            eta_means[i,:] = np.mean(eta[inds,:],axis=0)
-        colors = [((1/(len(self.y_list)*2)+i/len(self.y_list)),0.5-0.5*(1/(len(self.y_list)*2)+i/len(self.y_list)),1-(1/(len(self.y_list)*2)+i/len(self.y_list))) for i in range(len(self.y_list))]
-        plot_colors = [colors[self.y_dict[i]] for i in self.y_raw]
-        plt.scatter(
-            eta[:,coordx],
-            eta[:,coordy],
-            s = 2,
-            marker = ".",
-            c = [colors[self.y_dict[i]] for i in new_Y]
-        )
-        plt.scatter(
-            eta_means[:,coordx],
-            eta_means[:,coordy], 
-            s = 6,
-            c = '#FFFFFF',
-            linewidths = 3,
-            edgecolors = colors
-        )
-        plt.show()
-        plt.clf()
-        plt.close()
 
 if __name__ == "__main__":
-    train_file = "/home/cemarks/Desktop/vowel_train.csv"
+    train_file = "/home/cemarks/Documents/python-lda/data/vowel_train.csv"
     with open(train_file,"r") as f:
         r = f.readlines()
     a = [i.rstrip("\n").split(",") for i in r]
     Xy = [[float(j) for j in i[1:len(i)]] for i in a[1:len(r)] if len(i) > 1]
     X = np.array([[j for j in i[1:len(i)]] for i in Xy],dtype="float")
     y = np.array([i[0] for i in Xy],dtype="int32")
-    l = LDA(X,y)
+    def quadratic_kf(x1,x2):
+        return np.power(np.dot(x1,np.transpose(x2)) + 1,2)
+    km = KernelModel(quadratic_kf)
+    l = LDA(X,y,regression_model=km,reg_coef=1000)
     l.fit()
-    train_file = "/home/cemarks/Desktop/vowel_test.csv"
-    with open(train_file,"r") as f:
+    y_hat_train = l(X)
+    training_precision = np.equal(y_hat_train,y)
+    training_error_rate = 1-sum(training_precision)/len(training_precision)
+    print("Training error rate: {0:1.2f}%\n".format(100*training_error_rate))
+    test_file = "/home/cemarks/Documents/python-lda/data/vowel_test.csv"
+    with open(test_file,"r") as f:
         r_new = f.readlines()
     a_new = [i.rstrip("\n").split(",") for i in r_new]
     Xy_new = [[float(j) for j in i[1:len(i)]] for i in a_new[1:len(r)] if len(i) > 1]
     X_new = np.array([[j for j in i[1:len(i)]] for i in Xy_new],dtype="float")
     y_new = np.array([i[0] for i in Xy_new],dtype="int32")
-    l.plot(0,6)
+    y_hat_test = l(X_new)
+    test_precision = np.equal(y_hat_test,y_new)
+    test_error_rate = 1-sum(test_precision)/len(test_precision)
+    print("Test error rate: {0:1.2f}%\n".format(100*test_error_rate))
 
 
 
