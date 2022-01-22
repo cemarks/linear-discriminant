@@ -4,7 +4,7 @@
 This repository contains minimal code implementations of LDA. For more information on LDA see pp. 106--119 and pp 440--455 of Hastie, T., Tibshirani, R., & Friedman, J. H. (2009), *The elements of statistical learning: data mining, inference, and prediction,* 2nd ed. New York: Springer, pp 106--119 and pp 440--455, available [online](https://hastie.su.domains/ElemStatLearn/printings/ESLII_print12_toc.pdf).
 
 
-## Getting Started
+## Python
 
 ### Set up a virtual environment
 I recommend using a python virtual environment.
