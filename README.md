@@ -28,7 +28,7 @@ Alternatively, if you want to develop, install the package with the -e flag
 $ pip install -e ./python-linear-discriminant
 ```
 
-## Testing
+### Testing
 
 The `python-tests/test_lda-example.py` provides test methods that can be executed using `pytest` or that can be references as examples.  To run the test scripts, `pytest` and `pandas` must be installed.
 
