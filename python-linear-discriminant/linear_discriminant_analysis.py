@@ -516,6 +516,7 @@ class LinearDisciminant:
         """Step 2 (p. 445, Hastie, et. al.)"""
         YTYH = np.dot(np.transpose(self.Y), YH)
         eig_vals, EIG_VECTORS = np.linalg.eig(YTYH)
+        print(eig_vals)
         order = np.argsort(-1 * eig_vals)
         EIG_VECTORS_SORTED = EIG_VECTORS[:, order]
         eig_vals_sorted = eig_vals[order]

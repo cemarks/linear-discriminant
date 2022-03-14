@@ -88,3 +88,21 @@ def test_train_plot(
     ldm = LDA.LinearDisciminant()
     ldm.fit(*train_data)
     ldm.plot(x_coord - 1, y_coord - 1)
+
+@pytest.mark.parametrize(
+    ("reg_coef",),
+    [
+        (0,),
+        (1,),
+        (100,),
+        (350,),
+        (500,)
+    ]
+)
+def test_regularization(
+    train_data,
+    reg_coef
+):
+    ldm = LDA.LinearDisciminant(reg_coef=reg_coef)
+    ldm.fit(*train_data)
+    ldm.plot(1,2)
