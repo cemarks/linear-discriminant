@@ -14,7 +14,7 @@ It closely follows the computational steps on p. 445.
 
 Created on Sat May  5 08:18:24 2018
 
-@author: cemarks
+@author: Christopher E. Marks
 
 Dependencies
 ------------
