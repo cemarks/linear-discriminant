@@ -101,5 +101,5 @@ print(f"Test misclassification rate: {misclass_rate: 1.2f}")
 
 ## Implementation in R
 
-For a similar implementation in R, see the [klda]{https://github.com/cemarks/klda} package.
+For a similar implementation in R, see the [klda](https://github.com/cemarks/klda) package.
 
