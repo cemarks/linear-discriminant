@@ -80,7 +80,7 @@ class LinearModel:
         ----------
         numpy.ndarray
             The predicted values, i.e., the matrix product
-            X * THETA, where THETA is the model parameter vector.
+            X * PARAM, where PARAM is the model parameter vector.
         """
 
         X = self._preprocess(X)

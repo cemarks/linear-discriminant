@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 import os
-import linear_discriminant_analysis as LDA
+import lda as LDA
 
 
 pth = os.path.dirname(os.path.realpath(__file__))
