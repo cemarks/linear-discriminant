@@ -12,10 +12,9 @@ I recommend using a python virtual environment.
 
 ```bash
 # Shell
-python -m venv env
+python3 -m venv env
 source env/bin/activate
 pip install --upgrade pip
-pip install -r requirements.txt
 ```
 
 ### Install the linear-discriminant-analysis package
@@ -52,7 +51,7 @@ The code reads the vowel data from the data folder in this repository, assumed t
 # Python
 import numpy as np
 import os
-import lda as LDA
+import LinearDiscriminant as LDA
 
 # Not a dependency, but used in this example
 import pandas as pd
